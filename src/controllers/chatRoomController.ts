@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { ChatRoom, User } = require('../db/database');
+const { ChatRoom, Message, User } = require('../db/database');
 const { chatRoomSchema, firstZodMessage } = require('../validation/schemas');
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -81,6 +81,41 @@ async function listChatRooms(req, res) {
     return res.status(500).json({
       success: false,
       message: 'Failed to load chat rooms',
+    });
+  }
+}
+
+async function getUnreadMessageCount(req, res) {
+  try {
+    const roomQuery = { is_active: true, participant_ids: req.user.userId };
+    const rooms = await ChatRoom.find(roomQuery).select('_id');
+    const roomIds = rooms.map((room) => room._id);
+
+    if (!roomIds.length) {
+      return res.json({
+        success: true,
+        data: { count: 0 },
+      });
+    }
+
+    const now = new Date();
+    const count = await Message.countDocuments({
+      room_id: { $in: roomIds },
+      sender_id: { $ne: req.user.userId },
+      is_deleted: false,
+      read_by: { $not: { $elemMatch: { user_id: req.user.userId } } },
+      $or: [{ expires_at: null }, { expires_at: { $gt: now } }],
+    });
+
+    return res.json({
+      success: true,
+      data: { count },
+    });
+  } catch (error) {
+    console.error('Unread message count error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load unread message count',
     });
   }
 }
@@ -234,6 +269,7 @@ async function createOrGetChatRoom(req, res) {
 
 module.exports = {
   createOrGetChatRoom,
+  getUnreadMessageCount,
   listChatRooms,
   resolveChatRoomByCode,
 };

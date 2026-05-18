@@ -433,6 +433,12 @@ async function registerPushToken(req, res) {
       { upsert: true, new: true }
     );
 
+    console.log('Push token registered:', {
+      userId: req.user.userId,
+      platform,
+      tokenPrefix: token.slice(0, 22),
+    });
+
     return res.json({
       success: true,
       message: 'Push token registered',

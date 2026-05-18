@@ -4,3 +4,5 @@ build
 .expo
 .env
 .vscode
+*firebase-adminsdk*.json
+service-account*.json
