@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "fe2eedba-0344-47dc-8063-3eb18877762a"
+      }
+    },
+    "android": {
+      "package": "com.iqquizz.mobile"
+    }
+  }
+}

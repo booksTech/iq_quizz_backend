@@ -12,15 +12,6 @@ const chunk = (items, size) => {
   return chunks;
 };
 
-function messagePreview(message) {
-  if (message.text) return message.text;
-  if (message.emoji) return message.emoji;
-  if (message.attachments?.length) return 'Sent an attachment';
-  if (message.gifUrl) return 'Sent a GIF';
-  if (message.location) return 'Shared a location';
-  return 'Sent a message';
-}
-
 async function sendExpoNotifications(notifications) {
   const validNotifications = notifications.filter((notification) => isExpoPushToken(notification.to));
   if (!validNotifications.length) {
@@ -107,11 +98,10 @@ async function notifyRoomMessage(message) {
       sound: 'default',
       priority: 'high',
       title,
-      body: `${message.senderEmail}: ${messagePreview(message)}`,
+      body: 'please take a quizz',
       channelId: 'messages',
       data: {
         type: 'message',
-        roomId: message.roomId,
       },
     }));
 
