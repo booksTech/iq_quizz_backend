@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { ChatRoom, Message } = require('../db/database');
 const { firstZodMessage, sendMessageSchema } = require('../validation/schemas');
+const { notifyRoomMessage } = require('../utils/pushNotifications');
 
 const urlPattern = /(https?:\/\/[^\s]+)/i;
 const READ_DELETE_DELAY_MS = 3 * 60 * 1000;
@@ -290,6 +291,7 @@ async function sendMessage(req, res) {
   try {
     const message = await createMessage(req.params.roomId, req.user, req.body);
     req.app.get('io')?.to(req.params.roomId).emit('message:new', message);
+    notifyRoomMessage(message);
 
     return res.status(201).json({
       success: true,

@@ -6,9 +6,11 @@ const {
   resetPassword,
   refreshToken, 
   passwordKey,
+  registerPushToken,
   logout,
   getProfile,
-  updateProfile
+  updateProfile,
+  unregisterPushToken
 } = require('../controllers/authController');
 const { verifyToken } = require('../middleware/auth');
 
@@ -26,5 +28,7 @@ router.get('/password-key', passwordKey);
 router.post('/logout', verifyToken, logout);
 router.get('/profile', verifyToken, getProfile);
 router.put('/profile', verifyToken, updateProfile);
+router.post('/push-token', verifyToken, registerPushToken);
+router.delete('/push-token', verifyToken, unregisterPushToken);
 
 module.exports = router;

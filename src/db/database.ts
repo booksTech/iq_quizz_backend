@@ -95,6 +95,21 @@ const userSessionSchema = new mongoose.Schema({
 }, { _id: false });
 
 /**
+ * Expo Push Token Schema - one row per installed mobile app/device token
+ */
+const pushTokenSchema = new mongoose.Schema({
+  _id: { type: String, default: uuidv4 },
+  user_id: { type: String, required: true, index: true },
+  token: { type: String, required: true, unique: true, index: true },
+  platform: { type: String, enum: ['ios', 'android', 'web', 'unknown'], default: 'unknown' },
+  device_id: { type: String, default: '' },
+  is_active: { type: Boolean, default: true, index: true },
+  created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now },
+  last_used_at: { type: Date, default: null },
+}, { _id: false });
+
+/**
  * Quiz Schema
  */
 const quizSchema = new mongoose.Schema({
@@ -191,6 +206,7 @@ const User = mongoose.model('User', userSchema);
 const RefreshToken = mongoose.model('RefreshToken', refreshTokenSchema);
 const PasswordResetToken = mongoose.model('PasswordResetToken', passwordResetTokenSchema);
 const UserSession = mongoose.model('UserSession', userSessionSchema);
+const PushToken = mongoose.model('PushToken', pushTokenSchema);
 const Quiz = mongoose.model('Quiz', quizSchema);
 const QuizResult = mongoose.model('QuizResult', quizResultSchema);
 const ChatRoom = mongoose.model('ChatRoom', chatRoomSchema);
@@ -216,6 +232,8 @@ async function initDatabase() {
     await ensureTtlIndex(RefreshToken.collection, { expires_at: 1 }, { name: 'expires_at_1', expireAfterSeconds: 0 });
     await PasswordResetToken.collection.createIndex({ token_hash: 1 }, { unique: true });
     await ensureTtlIndex(PasswordResetToken.collection, { expires_at: 1 }, { name: 'expires_at_1', expireAfterSeconds: 0 });
+    await PushToken.collection.createIndex({ token: 1 }, { unique: true });
+    await PushToken.collection.createIndex({ user_id: 1, is_active: 1 });
     await ChatRoom.collection.createIndex({ participant_key: 1 }, { unique: true });
     await ChatRoom.collection.createIndex({ room_code: 1 }, { unique: true, sparse: true });
     await Message.collection.createIndex({ room_id: 1, created_at: -1 });
@@ -253,6 +271,7 @@ module.exports = {
   RefreshToken,
   PasswordResetToken,
   UserSession,
+  PushToken,
   Quiz,
   QuizResult,
   ChatRoom,

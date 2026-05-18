@@ -7,6 +7,7 @@ const {
   markMessagesReadByUser,
   scheduleReadDeletion,
 } = require('./controllers/messageController');
+const { notifyRoomMessage } = require('./utils/pushNotifications');
 
 function configureSockets(httpServer, corsOptions) {
   const io = new Server(httpServer, {
@@ -50,6 +51,7 @@ function configureSockets(httpServer, corsOptions) {
       try {
         const message = await createMessage(roomId, socket.user, payload);
         io.to(roomId).emit('message:new', message);
+        notifyRoomMessage(message);
         ack?.({ success: true, data: message });
       } catch (error) {
         ack?.({

@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
-const { User, RefreshToken, PasswordResetToken, UserSession } = require('../db/database');
+const { User, RefreshToken, PasswordResetToken, UserSession, PushToken } = require('../db/database');
 const jwtService = require('../utils/jwt');
 const passwordService = require('../utils/password');
 const {
@@ -45,6 +45,10 @@ function sendPasswordDecryptError(res) {
     success: false,
     message: 'Could not read encrypted password. Please reload and try again.',
   });
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function passwordKey(req, res) {
@@ -217,8 +221,13 @@ async function login(req, res) {
       deviceId,
     } = parsed.data;
 
-    // Find user
-    const user = await User.findOne({ username: normalizedUsername });
+    // Let the login field accept either username or email, without case surprises.
+    const loginIdentifier = normalizedUsername.trim();
+    const exactIdentifier = new RegExp(`^${escapeRegExp(loginIdentifier)}$`, 'i');
+    const userQuery = loginIdentifier.includes('@')
+      ? { email: exactIdentifier }
+      : { username: exactIdentifier };
+    const user = await User.findOne(userQuery);
 
     if (!user) {
       return res.status(401).json({
@@ -387,6 +396,80 @@ async function refreshToken(req, res) {
     res.status(401).json({
       success: false,
       message: 'Token refresh failed',
+    });
+  }
+}
+
+async function registerPushToken(req, res) {
+  try {
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    const platform = ['ios', 'android', 'web'].includes(req.body?.platform) ? req.body.platform : 'unknown';
+    const deviceId = typeof req.body?.deviceId === 'string' ? req.body.deviceId.trim() : '';
+
+    if (!/^Expo(nent)?PushToken\[[^\]]+\]$/.test(token)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid Expo push token required',
+      });
+    }
+
+    const now = new Date();
+    await PushToken.findOneAndUpdate(
+      { token },
+      {
+        $set: {
+          user_id: req.user.userId,
+          platform,
+          device_id: deviceId,
+          is_active: true,
+          updated_at: now,
+          last_used_at: now,
+        },
+        $setOnInsert: {
+          _id: uuidv4(),
+          created_at: now,
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Push token registered',
+    });
+  } catch (error) {
+    console.error('Register push token error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to register push token',
+    });
+  }
+}
+
+async function unregisterPushToken(req, res) {
+  try {
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Push token required',
+      });
+    }
+
+    await PushToken.updateOne(
+      { token, user_id: req.user.userId },
+      { is_active: false, updated_at: new Date() }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Push token unregistered',
+    });
+  } catch (error) {
+    console.error('Unregister push token error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to unregister push token',
     });
   }
 }
@@ -657,7 +740,9 @@ module.exports = {
   resetPassword,
   refreshToken,
   passwordKey,
+  registerPushToken,
   logout,
   getProfile,
   updateProfile,
+  unregisterPushToken,
 };
